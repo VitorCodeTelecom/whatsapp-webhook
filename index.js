@@ -3,7 +3,6 @@ const express = require('express');
 const fs = require('fs');
 const csv = require('csv-parser');
 const axios = require('axios');
-const multer = require('multer');
 const path = require('path');
 const app = express();
 
