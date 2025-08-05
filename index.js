@@ -7,16 +7,17 @@ const FormData = require('form-data');
 
 const app = express();
 
+// === CONFIGURAÇÕES ===
 const VERIFY_TOKEN = 'meu-token-secreto';
 const PORT = process.env.PORT || 10000;
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
-const PHONE_NUMBER_ID = '770964959424705'; // Do seu webhook
-const ACCESS_TOKEN = 'EAAT6cetkdfMBPAdEnyTvQGspmlO8TiX8oIDMm8mGVK3D2v7zcY5Lo8O3gZCEU27ZCM7VwVWNmPZCg6j58Gq0JixrqjaFugHc51p0LlIzlGEbXkCcC8HkOd05LZBfkkyXPVBmGMwNb3AWoaOuNj45WwObl9UD3CFSAjyoEQXEZCyZCQwJyijjPAzLPSkTZC3PqFEhAlZAYSta1E3EXP5IeCKNLhPNKxPZBEXIf8pYqvs8oDckZD'; // <-- Substitua aqui pelo token real
+const PHONE_NUMBER_ID = '770964959424705'; // <-- ID do número do WhatsApp
+const ACCESS_TOKEN = 'EAAT6cetkdfMBPAdEnyTvQGspmlO8TiX8oIDMm8mGVK3D2v7zcY5Lo8O3gZCEU27ZCM7VwVWNmPZCg6j58Gq0JixrqjaFugHc51p0LlIzlGEbXkCcC8HkOd05LZBfkkyXPVBmGMwNb3AWoaOuNj45WwObl9UD3CFSAjyoEQXEZCyZCQwJyijjPAzLPSkTZC3PqFEhAlZAYSta1E3EXP5IeCKNLhPNKxPZBEXIf8pYqvs8oDckZD';
 
 app.use(bodyParser.json());
 
-// Validação do Webhook (GET)
+// === Validação do Webhook ===
 app.get('/webhook', (req, res) => {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -30,7 +31,7 @@ app.get('/webhook', (req, res) => {
     }
 });
 
-// Função para enviar mensagem de texto
+// === Enviar mensagem de texto ===
 async function enviarTexto(wa_id, mensagem) {
     await axios.post(`${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`, {
         messaging_product: 'whatsapp',
@@ -44,7 +45,7 @@ async function enviarTexto(wa_id, mensagem) {
     });
 }
 
-// Função para enviar boleto em PDF
+// === Enviar boleto em PDF ===
 async function enviarBoletoPDF(wa_id, filePath) {
     const formData = new FormData();
     formData.append('file', fs.createReadStream(filePath));
@@ -52,7 +53,7 @@ async function enviarBoletoPDF(wa_id, filePath) {
     formData.append('type', 'document');
     formData.append('filename', path.basename(filePath));
 
-    // 1. Faz upload da mídia
+    // 1. Faz upload do arquivo
     const mediaRes = await axios.post(
         `${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/media`,
         formData,
@@ -66,7 +67,7 @@ async function enviarBoletoPDF(wa_id, filePath) {
 
     const mediaId = mediaRes.data.id;
 
-    // 2. Envia a mídia como documento
+    // 2. Envia a mídia
     await axios.post(`${WHATSAPP_API_URL}/${PHONE_NUMBER_ID}/messages`, {
         messaging_product: 'whatsapp',
         to: wa_id,
@@ -83,7 +84,7 @@ async function enviarBoletoPDF(wa_id, filePath) {
     });
 }
 
-// Webhook de recebimento de mensagens (POST)
+// === Recebendo mensagens ===
 app.post('/webhook', async (req, res) => {
     try {
         const entry = req.body.entry?.[0];
@@ -100,14 +101,14 @@ app.post('/webhook', async (req, res) => {
             if (texto.includes('boleto')) {
                 await enviarTexto(wa_id, `Segue o boleto, ${nome}!`);
 
-                const boletoPath = path.join(__dirname, 'boletos', 'LAURO_CAMPA_Setembro.pdf'); // <-- ajuste aqui conforme necessário
+                const boletoPath = path.join(__dirname, 'boletos', 'LAURO_CAMPA_Setembro.pdf'); // <- use o nome real do arquivo
                 await enviarBoletoPDF(wa_id, boletoPath);
             }
         }
 
         res.sendStatus(200);
     } catch (err) {
-        console.error('Erro ao processar mensagem:', err);
+        console.error('Erro ao processar mensagem:', err.response?.data || err);
         res.sendStatus(500);
     }
 });
